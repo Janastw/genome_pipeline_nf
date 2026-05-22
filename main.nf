@@ -11,6 +11,8 @@ include { KOFAMSCAN } from './modules/nf-core/kofamscan/main.nf'
 
 include { QC_TRIAGE } from './modules/qc/qc_triage/main.nf'
 include { DUPLICATE_HANDLING } from './modules/qc/duplicate_handling/main.nf'
+include { KO_COUNT_MATRIX } from './modules/faa_processing/create_ko_matrix/ko_count_matrix.nf'
+include { COUNT_AMINO_ACIDS } from './modules/faa_processing/count_amino_acids/count_aa.nf'
 
 
 workflow {
@@ -50,7 +52,6 @@ workflow {
         checkm2_db_ch = CHECKM2_DATABASEDOWNLOAD("").database
     }
 
-    // mergecheckm_ch = gunc_run_ch.map { it[0] }.combine(checkm2_db_ch).map { tuple(it[0], it[1]) }
     checkm2_predict_ch = CHECKM2_PREDICT(
         samples_ch,
         checkm2_db_ch
@@ -92,18 +93,6 @@ workflow {
     //     ""
     // )
 
-    // checkm2_passing = checkm2_predict_ch[1]
-    //     .splitCsv(header: true, sep: "\t")
-    //     .filter( row -> row.contamination >= 5.0 || row.completeness <= 90.0 )
-
-    // checkm2_summary = checkm2_predict_ch[1]
-    //     .splitCsv(header: true, sep: "\t")
-    //     .filter( row -> row.contamination >= 5.0 || row.completeness <= 90.0 )
-
-    // GUNC_MERGECHECKM(
-    //     gunc_run_ch
-    // )
-
     db = file("/project/cdonnat/shared/databases/bakta_5.1/db")
 
 
@@ -119,11 +108,7 @@ workflow {
 
     // bakta_db_ch.view()
 
-    db_ch          = Channel.value(file(params.bakta_db))
-    // proteins_ch    = Channel.value(file("${params.bakta_db}/expert-protein-sequences.dmnd"))
-    // regions_ch     = Channel.value(file("${params.bakta_db}/ncRNA-regions"))
-    // hmms_ch        = Channel.value(file("${params.bakta_db}/pfam"))
-    // prodigal_tf_ch = Channel.value([]) 
+    db_ch = Channel.value(file(params.bakta_db))
 
     BAKTA_BAKTA(
         qc_samples_ch,
@@ -134,6 +119,11 @@ workflow {
         [],
     )
 
+    COUNT_AMINO_ACIDS(
+        file("${projectDir}/modules/faa_processing/count_amino_acids/count_aa.py"),
+        BAKTA_BAKTA.out.faa.map { it[1] }.collect()
+    )
+
 
     kofamscan_profiles_ch = Channel.value(file(params.kofamscan_profiles))
     kofamscan_ko_list_ch = Channel.value(file(params.kofamscan_ko_list))
@@ -142,6 +132,11 @@ workflow {
         BAKTA_BAKTA.out.faa,
         kofamscan_profiles_ch,
         kofamscan_ko_list_ch
+    )
+
+    KO_COUNT_MATRIX(
+         file("${projectDir}/modules/faa_processing/create_ko_matrix/create_ko_count_matrix.py"),
+         KOFAMSCAN.out.txt.map{ it[1] }.collect()
     )
 
 }
