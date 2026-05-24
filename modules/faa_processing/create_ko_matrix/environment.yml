@@ -1,0 +1,7 @@
+name: pandas.3.0.1
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.12
+  - pandas=3.0.1
