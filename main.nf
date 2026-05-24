@@ -85,13 +85,55 @@ workflow {
             }
             tuple(meta, fasta)
         }
+    
+    // qc_samples_list_ch = qc_samples_ch
+    //     .map { meta, fasta -> fasta.toString() }
+    //     .collectFile(name: 'qc_samples_pathways.txt', newLine: true)
+
+    query_list_ch = qc_samples_ch
+        .map { meta, fasta -> fasta.toString() }
+        .collectFile(name: 'query_pathways.txt', newLine: true)
+
+    ref_list_ch = qc_samples_ch
+        .map { meta, fasta -> fasta.toString() }
+        .collectFile(name: 'ref_pathways.txt', newLine: true)
+
+    FASTANI(
+        [[], []],
+        [[], []],
+        query_list_ch,
+        ref_list_ch
+    )
 
     // FASTANI(
-    //     qc_samples_ch.map { it[1] },
-    //     qc_samples_ch.map { it[1] },
-    //     "",
-    //     ""
+    //     [[], []],
+    //     [[], []],
+    //     qc_samples_list_ch,
+    //     qc_samples_list_ch
     // )
+    
+    // fastani_ch = samples_ch.combine(qc_samples_ch).map { tuple1, tuple2 -> 
+    //     def meta1 = tuple1[0]
+    //     def meta2 = tuple2[0]
+    //     def fasta1 = tuple1[1]
+    //     def fasta2 = tuple2[1]
+    //     return meta1, fasta1, meta2, fasta2
+    // }
+
+    // FASTANI(fastani_ch, [], [])
+    // 1. Combine the channel with itself to get every possible pair
+    // fastani_ch = samples_ch
+    //     .combine(samples_ch)
+    //     .map { meta1, fasta1, meta2, fasta2 ->
+    //         // Create a new combined meta map so the output file has a unique name
+    //         def new_meta = [ id: "${meta1.id}_vs_${meta2.id}" ]
+            
+    //         // Return: meta, query, reference
+    //         tuple(new_meta, fasta1, fasta2)
+    //     }
+
+    // // 2. Feed it into your process
+    // FASTANI(fastani_ch)
 
     db = file("/project/cdonnat/shared/databases/bakta_5.1/db")
 
