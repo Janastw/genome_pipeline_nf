@@ -8,11 +8,14 @@ include { FASTANI } from './modules/nf-core/fastani/main.nf'
 include { BAKTA_BAKTADBDOWNLOAD } from './modules/nf-core/bakta/baktadbdownload/main.nf'
 include { BAKTA_BAKTA } from './modules/nf-core/bakta/bakta/main.nf'
 include { KOFAMSCAN } from './modules/nf-core/kofamscan/main.nf'
+include { MULTIQC } from './modules/nf-core/multiqc/main.nf'
+include { EGGNOGMAPPER } from './modules/nf-core/eggnogmapper/main.nf'
 
-include { QC_TRIAGE } from './modules/qc/qc_triage/main.nf'
-include { DUPLICATE_HANDLING } from './modules/qc/duplicate_handling/main.nf'
-include { KO_COUNT_MATRIX } from './modules/faa_processing/create_ko_matrix/ko_count_matrix.nf'
-include { COUNT_AMINO_ACIDS } from './modules/faa_processing/count_amino_acids/count_aa.nf'
+include { QC_TRIAGE } from './local_modules/qc/qc_triage/main.nf'
+include { DUPLICATE_HANDLING } from './local_modules/qc/duplicate_handling/main.nf'
+include { KO_COUNT_MATRIX } from './local_modules/faa_processing/create_ko_matrix/ko_count_matrix.nf'
+include { COUNT_AMINO_ACIDS } from './local_modules/faa_processing/count_amino_acids/count_aa.nf'
+include { EXTRACT_16S_RRNA } from './local_modules/faa_processing/extract_16s_rrna/extract_16s_rrna.nf'
 
 
 workflow {
@@ -85,10 +88,6 @@ workflow {
             }
             tuple(meta, fasta)
         }
-    
-    // qc_samples_list_ch = qc_samples_ch
-    //     .map { meta, fasta -> fasta.toString() }
-    //     .collectFile(name: 'qc_samples_pathways.txt', newLine: true)
 
     query_list_ch = qc_samples_ch
         .map { meta, fasta -> fasta.toString() }
@@ -105,35 +104,11 @@ workflow {
         ref_list_ch
     )
 
-    // FASTANI(
-    //     [[], []],
-    //     [[], []],
-    //     qc_samples_list_ch,
-    //     qc_samples_list_ch
+    // FASTANI_THRESHOLDING(
+    //     FASTANI.out.ani,
+    //     80,
+        
     // )
-    
-    // fastani_ch = samples_ch.combine(qc_samples_ch).map { tuple1, tuple2 -> 
-    //     def meta1 = tuple1[0]
-    //     def meta2 = tuple2[0]
-    //     def fasta1 = tuple1[1]
-    //     def fasta2 = tuple2[1]
-    //     return meta1, fasta1, meta2, fasta2
-    // }
-
-    // FASTANI(fastani_ch, [], [])
-    // 1. Combine the channel with itself to get every possible pair
-    // fastani_ch = samples_ch
-    //     .combine(samples_ch)
-    //     .map { meta1, fasta1, meta2, fasta2 ->
-    //         // Create a new combined meta map so the output file has a unique name
-    //         def new_meta = [ id: "${meta1.id}_vs_${meta2.id}" ]
-            
-    //         // Return: meta, query, reference
-    //         tuple(new_meta, fasta1, fasta2)
-    //     }
-
-    // // 2. Feed it into your process
-    // FASTANI(fastani_ch)
 
     db = file("/project/cdonnat/shared/databases/bakta_5.1/db")
 
@@ -162,7 +137,7 @@ workflow {
     )
 
     COUNT_AMINO_ACIDS(
-        file("${projectDir}/modules/faa_processing/count_amino_acids/count_aa.py"),
+        file("${projectDir}/local_modules/faa_processing/count_amino_acids/count_aa.py"),
         BAKTA_BAKTA.out.faa.map { it[1] }.collect()
     )
 
@@ -177,8 +152,33 @@ workflow {
     )
 
     KO_COUNT_MATRIX(
-         file("${projectDir}/modules/faa_processing/create_ko_matrix/create_ko_count_matrix.py"),
+         file("${projectDir}/local_modules/faa_processing/create_ko_matrix/create_ko_count_matrix.py"),
          KOFAMSCAN.out.txt.map{ it[1] }.collect()
+    )
+
+    // MULTIQC(
+    //     [ id: 'multiqc' ],
+    //     [GUNC_RUN.out.gunc_run, CHECKM2_PREDICT.out.checkm2_tsv, BAKTA_BAKTA.out.tsv, KOFAMSCAN.out.txt ],
+    //     [ "gunc_run", "checkm2", "bakta", "kofamscan" ],
+    //     [],
+    //     [],
+    //     [],
+    //     []
+    // )
+
+    db = Channel.value(file(params.eggnogmapper_db)).map { path -> tuple("diamond", path.resolve("eggnog_proteins.dmnd")) }
+        .first()
+
+    EGGNOGMAPPER(
+        BAKTA_BAKTA.out.faa,
+        db,
+        file(params.eggnogmapper_db)
+    )
+
+    samples_fna_faa_ch = BAKTA_BAKTA.out.fna.join(BAKTA_BAKTA.out.gff)
+
+    EXTRACT_16S_RRNA(
+        samples_fna_faa_ch
     )
 
 }
