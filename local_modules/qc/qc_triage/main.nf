@@ -1,6 +1,7 @@
 #!/usr/bin/env nextflow
 
 process QC_TRIAGE {
+    container 'quay.io/hdc-workflows/python-pandas:v1.2.1_latest'
 
     input:
     path genome_manifest

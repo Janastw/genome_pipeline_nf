@@ -1,0 +1,22 @@
+// Copy this file to midway3_caslake.config and fill in your values.
+// midway3_caslake.config is gitignored — do not commit it directly.
+
+process {
+    cache          = 'lenient'
+    executor       = 'slurm'
+    clusterOptions = "--output=job-info.output --error=job-info.err --account=YOUR_SLURM_ACCOUNT --partition=caslake"
+}
+
+env {
+    APPTAINERENV_TMPDIR   = "$PWD"
+    SINGULARITYENV_TMPDIR = "$PWD"
+    APPTAINERENV_TMP      = "$PWD"
+    SINGULARITYENV_TMP    = "$PWD"
+}
+
+singularity {
+    enabled    = true
+    autoMounts = true
+    runOptions = "--bind /scratch/midway3/YOUR_CNETID:/tmp --bind /path/to/gunc/database"
+    cacheDir   = "/path/to/singularity/cacheDir"
+}

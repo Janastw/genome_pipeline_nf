@@ -1,6 +1,7 @@
 #!/usr/bin/env nextflow
 
 process DUPLICATE_HANDLING {
+    container 'quay.io/hdc-workflows/python-pandas:v1.2.1_latest'
 
     input:
     path filtered_genome_manifest
@@ -21,8 +22,7 @@ process DUPLICATE_HANDLING {
     priority_df = pd.read_csv("${priority_tsv}", sep='\\t')
 
     # Left join the priority data onto the filtered genome manifest
-    # Note: Assumes a shared column like 'sample_id' or 'assembly_path' exists to join on. 
-    # Adjust the 'on' parameter if your join key is named differently.
+    # Assumes a shared column like 'sample_id' or 'assembly_path' exists to join on. 
     merged_df = pd.merge(manifest_df, priority_df, left_on="assembly_path", right_on="assembly_path", how="left")
 
     # Fill missing values in the priority column with 0 and ensure it is an integer

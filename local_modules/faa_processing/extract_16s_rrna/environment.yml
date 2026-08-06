@@ -1,0 +1,8 @@
+name: extract_16s_rrna
+channels:
+  - bioconda
+  - conda-forge
+  - defaults
+dependencies:
+  - bedtools
+  - samtools
