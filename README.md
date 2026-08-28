@@ -113,7 +113,7 @@ assembly_path	priority
    ```
 2. Edit `configs/midway3.config`:
    - Replace `YOUR_SLURM_ACCOUNT` with your SLURM account name
-   - Replace `YOUR_PARTITION` with your partition (e.g. `cdonnat`, `caslake`)
+   - Replace `YOUR_PARTITION` with your Slurm partition name
    - Replace `YOUR_CNETID` with your CNetID
    - Set `cacheDir` to your Singularity image cache path
 3. Pass it at runtime with `-c configs/midway3.config`. Both `nextflow.config` and `configs/midway3.config` are gitignored - never commit them.
