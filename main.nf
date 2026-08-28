@@ -34,9 +34,7 @@ workflow {
     // --- QC ---
 
     if (params.gunc_db) {
-        gunc_db_ch = Channel
-            .fromPath(params.gunc_db)
-            .first()
+        gunc_db_ch = Channel.fromPath(params.gunc_db)
     } else {
         gunc_db_ch = GUNC_DOWNLOADDB("progenomes_2.1").db
     }
