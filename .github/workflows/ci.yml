@@ -1,0 +1,62 @@
+name: CI
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+    branches: [main]
+
+jobs:
+  validate:
+    name: Validate pipeline
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Nextflow
+        uses: nf-core/setup-nextflow@v2
+        with:
+          version: ">=24.10.1"
+
+      - name: Check module imports resolve to existing files
+        run: |
+          python3 - <<'EOF'
+          import re, pathlib, sys
+
+          nf = pathlib.Path('main.nf').read_text()
+          errors = []
+          for m in re.finditer(r"include\s*\{[^}]+\}\s*from\s*'([^']+)'", nf):
+              src = m.group(1)
+              candidate = pathlib.Path(src.lstrip('./'))
+              # include paths may omit /main.nf — try both
+              if not candidate.exists() and not (candidate.parent / 'main.nf').exists():
+                  errors.append(f"Unresolved import: {src}")
+          for e in errors:
+              print(e, file=sys.stderr)
+          sys.exit(len(errors))
+          EOF
+
+      - name: Check local_modules structure
+        run: |
+          for nf in $(find local_modules -name '*.nf'); do
+            echo "Checking $nf"
+            grep -q 'process\|workflow' "$nf" || echo "WARNING: $nf has no process or workflow block"
+          done
+
+      - name: Verify modules.json is consistent with modules/nf-core
+        run: |
+          python3 - <<'EOF'
+          import json, pathlib, sys
+
+          data = json.loads(pathlib.Path('modules.json').read_text())
+          modules = data['repos']['https://github.com/nf-core/modules.git']['modules']['nf-core']
+          errors = []
+          for name in modules:
+              path = pathlib.Path('modules/nf-core') / name / 'main.nf'
+              if not path.exists():
+                  errors.append(f"modules.json lists '{name}' but {path} is missing")
+          for e in errors:
+              print(e, file=sys.stderr)
+          sys.exit(len(errors))
+          EOF
