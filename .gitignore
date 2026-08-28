@@ -11,8 +11,8 @@ results/
 
 # HPC cluster configs (contain account/partition/path info — use *.template instead)
 nextflow.config
-configs/midway3.config
-configs/midway3_caslake.config
+configs/*.config
+!configs/test.config
 
 # Conda / software environments
 env/

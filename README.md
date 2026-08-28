@@ -107,16 +107,15 @@ assembly_path	priority
 
 ## HPC setup (Midway3)
 
-1. Copy the config template and fill in your values:
+1. Copy the generic HPC template and fill in your site-specific values:
    ```bash
-   cp configs/midway3.config.template configs/midway3.config
+   cp configs/hpc_slurm.config.template configs/hpc.config
    ```
-2. Edit `configs/midway3.config`:
-   - Replace `YOUR_SLURM_ACCOUNT` with your SLURM account name
+2. Edit `configs/hpc.config`:
+   - Replace `YOUR_SLURM_ACCOUNT` with your Slurm account name
    - Replace `YOUR_PARTITION` with your Slurm partition name
-   - Replace `YOUR_CNETID` with your CNetID
-   - Set `cacheDir` to your Singularity image cache path
-3. Pass it at runtime with `-c configs/midway3.config`. Both `nextflow.config` and `configs/midway3.config` are gitignored - never commit them.
+   - Replace `YOUR_USERNAME` and paths with your site's scratch/cache locations
+3. Pass it at runtime with `-c configs/hpc.config`. All filled-in configs are gitignored - never commit them.
 
 ## Outputs
 
