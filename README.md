@@ -38,7 +38,7 @@ Input TSV manifest (sample_id, assembly_path)
 
 ```bash
 nextflow run Janastw/genome_pipeline_nf \
-  -profile midway3_cdonnat \
+  -c /path/to/your/midway3.config \
   --genome_manifest samples.tsv \
   --bakta_db /path/to/bakta_db \
   --kofamscan_profiles /path/to/profiles.tar.gz \
@@ -58,7 +58,7 @@ cp configs/midway3.config.template configs/midway3.config
 # Edit configs/midway3.config with your SLURM account, scratch path, etc.
 
 nextflow run main.nf \
-  -profile midway3_cdonnat \
+  -c configs/midway3.config \
   --genome_manifest samples.tsv \
   --bakta_db /path/to/bakta_db \
   --kofamscan_profiles /path/to/profiles.tar.gz \
@@ -116,13 +116,7 @@ assembly_path	priority
    - Replace `YOUR_PARTITION` with your partition (e.g. `cdonnat`, `caslake`)
    - Replace `YOUR_CNETID` with your CNetID
    - Set `cacheDir` to your Singularity image cache path
-3. `nextflow.config` and `configs/midway3.config` are gitignored - never commit them.
-
-### Available profiles
-
-| Profile | Description |
-|---|---|
-| `midway3_cdonnat` | Midway3 using the `cdonnat` Slurm partition |
+3. Pass it at runtime with `-c configs/midway3.config`. Both `nextflow.config` and `configs/midway3.config` are gitignored - never commit them.
 
 ## Outputs
 

@@ -33,4 +33,9 @@ process EXTRACT_16S_RRNA {
             samtools: \$(samtools --version | head -1 | sed 's/samtools //g')
     END_VERSIONS
     """
+
+    stub:
+    """
+    touch ${meta.id}-16S.fna versions.yml
+    """
 }

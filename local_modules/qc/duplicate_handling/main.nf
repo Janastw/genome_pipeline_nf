@@ -46,4 +46,10 @@ process DUPLICATE_HANDLING {
     removed_df = merged_df[~merged_df.index.isin(deduplicated_df.index)]
     removed_df.to_csv("2_removed_genome_manifest.tsv", sep='\\t', index=False)
     """
+
+    stub:
+    """
+    cp ${filtered_genome_manifest} 3_filtered_deduplicated_genome_manifest.tsv
+    touch 1_duplicate_genomes.tsv 2_removed_genome_manifest.tsv
+    """
 }

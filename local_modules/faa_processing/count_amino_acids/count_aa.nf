@@ -30,6 +30,11 @@ process COUNT_AMINO_ACIDS {
         df_clr = pd.DataFrame(clr(df), index=df.index, columns=df.columns); \
         df_clr.to_csv('amino_acid_clr.csv')"
     """
+
+    stub:
+    """
+    touch amino_acid_counts.csv amino_acid_proportions.csv amino_acid_clr.csv
+    """
 }
 
 workflow RUN_COUNT_AMINO_ACIDS {
