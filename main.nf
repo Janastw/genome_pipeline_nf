@@ -36,7 +36,7 @@ workflow {
     if (params.gunc_db) {
         gunc_db_ch = Channel
             .fromPath(params.gunc_db)
-            .map { path -> tuple([id: "gunc_db"], path) }.first()
+            .first()
     } else {
         gunc_db_ch = GUNC_DOWNLOADDB("progenomes_2.1").db
     }
