@@ -6,7 +6,7 @@
 process MERGE_FAA {
     executor 'local'
 
-    publishDir "${params.output_dir}/faa", mode: "copy"
+    publishDir "${params.output_dir}", mode: "copy"
 
     input:
     path(faa_files)
@@ -16,11 +16,13 @@ process MERGE_FAA {
 
     script:
     """
-    mv *.faa .
+    mkdir -p faa
+    mv *.faa faa
     """
 
     stub:
     """
+    mkdir -p faa
     touch temp.faa
     """
 }
