@@ -1,29 +1,23 @@
-#!/usr/bin/bash Nextflow
-
-
-
+#!/usr/bin/env nextflow
 
 process MERGE_FAA {
     executor 'local'
 
-    // publishDir "${params.output_dir}", mode: "copy"
-
     input:
-    path(faa_files)
+    path("faa/*") 
 
     output:
     path "faa", emit: faa_dir
 
     script:
     """
-    mkdir -p faa
-    mv *.faa faa
+    echo "Successfully bundled .faa files"
     """
 
     stub:
     """
     mkdir -p faa
-    touch temp.faa
+    touch faa/stub_file.faa
     """
 }
 
