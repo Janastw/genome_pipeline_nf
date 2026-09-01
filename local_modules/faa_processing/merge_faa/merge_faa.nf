@@ -16,13 +16,12 @@ process MERGE_FAA {
 
     script:
     """
-    mkdir faa
-    mv *.faa faa/
+    mv *.faa .
     """
 
     stub:
     """
-    mkdir faa
+    touch temp.faa
     """
 }
 
