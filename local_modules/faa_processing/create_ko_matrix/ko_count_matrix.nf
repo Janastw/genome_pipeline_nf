@@ -20,6 +20,11 @@ process KO_COUNT_MATRIX {
         -f ${kofamscan_outputs} \\
         -o ko_count_matrix.tsv
     """
+
+    stub:
+    """
+    touch ko_count_matrix.tsv
+    """
 }
 
 workflow run_KO_COUNT_MATRIX {

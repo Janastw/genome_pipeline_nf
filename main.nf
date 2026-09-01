@@ -1,18 +1,20 @@
 #!/usr/bin/env nextflow
 
-include { GUNC_DOWNLOADDB } from './modules/nf-core/gunc/downloaddb/main.nf'
-include { GUNC_RUN } from './modules/nf-core/gunc/run/main.nf'
+include { GUNC_DOWNLOADDB }          from './modules/nf-core/gunc/downloaddb/main.nf'
+include { GUNC_RUN }                 from './modules/nf-core/gunc/run/main.nf'
 include { CHECKM2_DATABASEDOWNLOAD } from './modules/nf-core/checkm2/databasedownload/main.nf'
-include { CHECKM2_PREDICT } from './modules/nf-core/checkm2/predict/main.nf'
-include { FASTANI } from './modules/nf-core/fastani/main.nf'
-include { BAKTA_BAKTADBDOWNLOAD } from './modules/nf-core/bakta/baktadbdownload/main.nf'
-include { BAKTA_BAKTA } from './modules/nf-core/bakta/bakta/main.nf'
-include { KOFAMSCAN } from './modules/nf-core/kofamscan/main.nf'
+include { CHECKM2_PREDICT }          from './modules/nf-core/checkm2/predict/main.nf'
+include { FASTANI }                  from './modules/nf-core/fastani/main.nf'
+include { BAKTA_BAKTA }              from './modules/nf-core/bakta/bakta/main.nf'
+include { KOFAMSCAN }                from './modules/nf-core/kofamscan/main.nf'
+include { EGGNOGMAPPER }             from './modules/nf-core/eggnogmapper/main.nf'
 
-include { QC_TRIAGE } from './modules/qc/qc_triage/main.nf'
-include { DUPLICATE_HANDLING } from './modules/qc/duplicate_handling/main.nf'
-include { KO_COUNT_MATRIX } from './modules/faa_processing/create_ko_matrix/ko_count_matrix.nf'
-include { COUNT_AMINO_ACIDS } from './modules/faa_processing/count_amino_acids/count_aa.nf'
+include { QC_TRIAGE }          from './local_modules/qc/qc_triage/main.nf'
+include { DUPLICATE_HANDLING } from './local_modules/qc/duplicate_handling/main.nf'
+include { KO_COUNT_MATRIX }    from './local_modules/faa_processing/create_ko_matrix/ko_count_matrix.nf'
+include { COUNT_AMINO_ACIDS }  from './local_modules/faa_processing/count_amino_acids/count_aa.nf'
+include { EXTRACT_16S_RRNA }   from './local_modules/faa_processing/extract_16s_rrna/extract_16s_rrna.nf'
+include { MERGE_FAA }          from './local_modules/faa_processing/merge_faa/merge_faa.nf'
 
 
 workflow {
@@ -21,20 +23,19 @@ workflow {
     samples_ch = Channel
         .fromPath(genome_manifest)
         .splitCsv(header: true, sep: "\t")
-        .map { row -> 
+        .map { row ->
             def meta = [ id: row.sample_id ]
             def fasta = file(row.assembly_path)
-            // Validates that the assembly file exists before proceeding, needed for downstream processes that rely on the assembly file being present
             if ( !fasta.exists() ) {
                 throw new IllegalArgumentException("Fasta file not found: ${fasta}")
             }
             tuple(meta, fasta)
         }
 
+    // --- QC ---
+
     if (params.gunc_db) {
-        gunc_db_ch = Channel
-            .fromPath(params.gunc_db)
-            .map { path -> tuple([id: "gunc_db"], path) }.first()
+        gunc_db_ch = Channel.fromPath(params.gunc_db)
     } else {
         gunc_db_ch = GUNC_DOWNLOADDB("progenomes_2.1").db
     }
@@ -59,8 +60,8 @@ workflow {
 
     all_gunc_ch = gunc_run_ch.map { it[1] }
         .collectFile(name: "all_gunc_summary.tsv", keepHeader: true)
-    
-    all_checkm2_ch = checkm2_predict_ch.map { it[1]}
+
+    all_checkm2_ch = checkm2_predict_ch.map { it[1] }
         .collectFile(name: "all_checkm2_summary.tsv", keepHeader: true)
 
     qc_summary = QC_TRIAGE(
@@ -76,19 +77,16 @@ workflow {
 
     qc_samples_ch = duplicate_genome_manifest
         .splitCsv(header: true, sep: "\t")
-        .map { row -> 
+        .map { row ->
             def meta = [ id: row.sample_id ]
             def fasta = file(row.assembly_path)
-            // Validates that the assembly file exists before proceeding, needed for downstream processes that rely on the assembly file being present
             if ( !fasta.exists() ) {
                 throw new IllegalArgumentException("Fasta file not found: ${fasta}")
             }
             tuple(meta, fasta)
         }
-    
-    // qc_samples_list_ch = qc_samples_ch
-    //     .map { meta, fasta -> fasta.toString() }
-    //     .collectFile(name: 'qc_samples_pathways.txt', newLine: true)
+
+    // --- ANI ---
 
     query_list_ch = qc_samples_ch
         .map { meta, fasta -> fasta.toString() }
@@ -105,50 +103,7 @@ workflow {
         ref_list_ch
     )
 
-    // FASTANI(
-    //     [[], []],
-    //     [[], []],
-    //     qc_samples_list_ch,
-    //     qc_samples_list_ch
-    // )
-    
-    // fastani_ch = samples_ch.combine(qc_samples_ch).map { tuple1, tuple2 -> 
-    //     def meta1 = tuple1[0]
-    //     def meta2 = tuple2[0]
-    //     def fasta1 = tuple1[1]
-    //     def fasta2 = tuple2[1]
-    //     return meta1, fasta1, meta2, fasta2
-    // }
-
-    // FASTANI(fastani_ch, [], [])
-    // 1. Combine the channel with itself to get every possible pair
-    // fastani_ch = samples_ch
-    //     .combine(samples_ch)
-    //     .map { meta1, fasta1, meta2, fasta2 ->
-    //         // Create a new combined meta map so the output file has a unique name
-    //         def new_meta = [ id: "${meta1.id}_vs_${meta2.id}" ]
-            
-    //         // Return: meta, query, reference
-    //         tuple(new_meta, fasta1, fasta2)
-    //     }
-
-    // // 2. Feed it into your process
-    // FASTANI(fastani_ch)
-
-    db = file("/project/cdonnat/shared/databases/bakta_5.1/db")
-
-
-
-    // if (params.bakta_db) {
-    //     bakta_db_ch = Channel
-    //         .fromPath(params.bakta_db)
-    //         .map { path -> tuple([id: "bakta_db"], path) }
-    //         .first()
-    // } else {
-    //     bakta_db_ch = BAKTA_BAKTADBDOWNLOAD().db
-    // }
-
-    // bakta_db_ch.view()
+    // --- Annotation ---
 
     db_ch = Channel.value(file(params.bakta_db))
 
@@ -161,14 +116,17 @@ workflow {
         [],
     )
 
+    ch_faa_dir = MERGE_FAA(BAKTA_BAKTA.out.faa.map { it[1] }.collect())
+
     COUNT_AMINO_ACIDS(
-        file("${projectDir}/modules/faa_processing/count_amino_acids/count_aa.py"),
+        file("${projectDir}/local_modules/faa_processing/count_amino_acids/count_aa.py"),
         BAKTA_BAKTA.out.faa.map { it[1] }.collect()
     )
 
+    // --- Functional profiling ---
 
     kofamscan_profiles_ch = Channel.value(file(params.kofamscan_profiles))
-    kofamscan_ko_list_ch = Channel.value(file(params.kofamscan_ko_list))
+    kofamscan_ko_list_ch  = Channel.value(file(params.kofamscan_ko_list))
 
     KOFAMSCAN(
         BAKTA_BAKTA.out.faa,
@@ -177,8 +135,24 @@ workflow {
     )
 
     KO_COUNT_MATRIX(
-         file("${projectDir}/modules/faa_processing/create_ko_matrix/create_ko_count_matrix.py"),
-         KOFAMSCAN.out.txt.map{ it[1] }.collect()
+        file("${projectDir}/local_modules/faa_processing/create_ko_matrix/create_ko_count_matrix.py"),
+        KOFAMSCAN.out.txt.map { it[1] }.collect()
+    )
+
+    eggnogmapper_db_ch = Channel.value(file(params.eggnogmapper_db))
+        .map { path -> tuple("diamond", path.resolve("eggnog_proteins.dmnd")) }
+        .first()
+
+    EGGNOGMAPPER(
+        BAKTA_BAKTA.out.faa,
+        eggnogmapper_db_ch,
+        file(params.eggnogmapper_db)
+    )
+
+    // --- 16S extraction ---
+
+    EXTRACT_16S_RRNA(
+        BAKTA_BAKTA.out.fna.join(BAKTA_BAKTA.out.gff)
     )
 
 }

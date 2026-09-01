@@ -1,0 +1,27 @@
+# Nextflow runtime
+work/
+.nextflow/
+.nextflow.log*
+
+# Pipeline outputs
+results/
+
+# HPC runner scripts (contain project-specific paths)
+*.sh
+
+# HPC cluster configs (contain account/partition/path info — use *.template instead)
+nextflow.config
+configs/*.config
+!configs/test.config
+
+# Conda / software environments
+env/
+kofamscan*
+
+# Notebooks
+*.ipynb
+
+# Logs
+*.log
+*.err
+*.output

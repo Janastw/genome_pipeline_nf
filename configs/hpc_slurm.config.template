@@ -1,0 +1,30 @@
+// Generic HPC config template for Slurm + Singularity/Apptainer.
+// Copy this file, fill in your site-specific values, and pass it at runtime:
+//
+//   nextflow run Janastw/genome_pipeline_nf \
+//     -c /path/to/your/hpc.config \
+//     --genome_manifest samples.tsv ...
+//
+// Do NOT commit your filled-in config — it contains site-specific paths.
+
+process {
+    cache          = 'lenient'
+    executor       = 'slurm'
+    clusterOptions = "--output=job-info.output --error=job-info.err --account=YOUR_SLURM_ACCOUNT --partition=YOUR_PARTITION"
+}
+
+env {
+    APPTAINERENV_TMPDIR   = "$PWD"
+    SINGULARITYENV_TMPDIR = "$PWD"
+    APPTAINERENV_TMP      = "$PWD"
+    SINGULARITYENV_TMP    = "$PWD"
+}
+
+singularity {
+    enabled    = true
+    autoMounts = true
+    runOptions = "--bind /path/to/scratch/YOUR_USERNAME:/tmp"
+    cacheDir   = "/path/to/singularity/cache"
+}
+
+conda.enabled = true

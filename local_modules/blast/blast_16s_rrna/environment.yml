@@ -1,0 +1,9 @@
+name: blast_16s_rrna
+channels:
+  - bioconda
+  - conda-forge
+dependencies:
+  - blast
+  - biopython
+variables:
+  BLASTDB: /project2/databases/blast:$BLASTDB

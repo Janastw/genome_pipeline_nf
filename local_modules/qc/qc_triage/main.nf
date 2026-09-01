@@ -1,6 +1,7 @@
 #!/usr/bin/env nextflow
 
 process QC_TRIAGE {
+    container 'quay.io/hdc-workflows/python-pandas:v1.2.1_latest'
 
     input:
     path genome_manifest
@@ -50,5 +51,11 @@ process QC_TRIAGE {
     filtered_summary_df.to_csv("2_filtered_summary.tsv", sep='\t', index=False)
     filtered_genome_manifest_df = filtered_summary_df[["sample_id", "assembly_path"]]
     filtered_genome_manifest_df.to_csv("3_filtered_genome_manifest.tsv", sep='\t', index=False)
+    """
+
+    stub:
+    """
+    cp ${genome_manifest} 3_filtered_genome_manifest.tsv
+    touch 1_complete_summary.tsv 2_filtered_summary.tsv
     """
 }

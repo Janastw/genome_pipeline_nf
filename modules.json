@@ -15,12 +15,22 @@
             "git_sha": "6d46786420b4d7bc88eba026eb389c0c5535d120",
             "installed_by": ["modules"]
           },
+          "barrnap": {
+            "branch": "master",
+            "git_sha": "6d46786420b4d7bc88eba026eb389c0c5535d120",
+            "installed_by": ["modules"]
+          },
           "checkm2/databasedownload": {
             "branch": "master",
             "git_sha": "6d46786420b4d7bc88eba026eb389c0c5535d120",
             "installed_by": ["modules"]
           },
           "checkm2/predict": {
+            "branch": "master",
+            "git_sha": "6d46786420b4d7bc88eba026eb389c0c5535d120",
+            "installed_by": ["modules"]
+          },
+          "eggnogmapper": {
             "branch": "master",
             "git_sha": "6d46786420b4d7bc88eba026eb389c0c5535d120",
             "installed_by": ["modules"]
@@ -43,6 +53,11 @@
           "kofamscan": {
             "branch": "master",
             "git_sha": "9d675a431e1fcd9dc4043edcc9b1c26b5c2377c0",
+            "installed_by": ["modules"]
+          },
+          "multiqc": {
+            "branch": "master",
+            "git_sha": "98403d15b0e50edae1f3fec5eae5e24982f1fade",
             "installed_by": ["modules"]
           }
         }

@@ -1,0 +1,178 @@
+name: CI
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+    branches: [main]
+
+jobs:
+  # ── Static checks ────────────────────────────────────────────────────────────
+  # Fast pre-flight: verify that all include paths in main.nf point to existing
+  # files and that modules.json is consistent with the modules/ tree.
+  # These run without Nextflow and catch import typos immediately.
+  validate:
+    name: Static validation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check module imports resolve to existing files
+        run: |
+          python3 - <<'EOF'
+          import re, pathlib, sys
+
+          nf = pathlib.Path('main.nf').read_text()
+          errors = []
+          for m in re.finditer(r"include\s*\{[^}]+\}\s*from\s*'([^']+)'", nf):
+              src = m.group(1)
+              candidate = pathlib.Path(src.lstrip('./'))
+              if not candidate.exists() and not (candidate.parent / 'main.nf').exists():
+                  errors.append(f"Unresolved import: {src}")
+          for e in errors:
+              print(e, file=sys.stderr)
+          sys.exit(len(errors))
+          EOF
+
+      - name: Verify modules.json matches modules/nf-core tree
+        run: |
+          python3 - <<'EOF'
+          import json, pathlib, sys
+
+          data = json.loads(pathlib.Path('modules.json').read_text())
+          modules = data['repos']['https://github.com/nf-core/modules.git']['modules']['nf-core']
+          errors = []
+          for name in modules:
+              path = pathlib.Path('modules/nf-core') / name / 'main.nf'
+              if not path.exists():
+                  errors.append(f"modules.json lists '{name}' but {path} is missing")
+          for e in errors:
+              print(e, file=sys.stderr)
+          sys.exit(len(errors))
+          EOF
+
+      - name: Check local modules have process blocks
+        run: |
+          fail=0
+          for nf in $(find local_modules -name '*.nf'); do
+            if ! grep -qE '^process ' "$nf"; then
+              echo "WARNING: $nf has no process block"
+            fi
+            if ! grep -q 'stub:' "$nf"; then
+              echo "FAIL: $nf is missing a stub: block (required for smoke tests)" >&2
+              fail=1
+            fi
+          done
+          exit $fail
+
+  # ── Stub smoke test ──────────────────────────────────────────────────────────
+  # Runs the full pipeline in Nextflow's -stub mode: every process executes its
+  # stub: block instead of the real tool, creating empty placeholder output
+  # files.  This verifies that every channel input/output is correctly wired
+  # end-to-end — wrong channel arity, bad joins, missing emits, or incorrect
+  # file patterns all surface here without needing HPC databases.
+  #
+  # What it checks:
+  #   - All 11 expected processes appear and complete (SUBMITTED → COMPLETED)
+  #   - The workflow exits 0 (no channel errors, no missing outputs)
+  #   - GUNC_RUN, CHECKM2_PREDICT → QC_TRIAGE → DUPLICATE_HANDLING chain works
+  #   - FASTANI receives the query/ref list files from qc_samples_ch
+  #   - BAKTA_BAKTA outputs fan out correctly to EGGNOGMAPPER, KOFAMSCAN,
+  #     COUNT_AMINO_ACIDS, and EXTRACT_16S_RRNA
+  #   - KO_COUNT_MATRIX and COUNT_AMINO_ACIDS receive collected .faa/.txt inputs
+  smoke-test:
+    name: Pipeline stub smoke test
+    runs-on: ubuntu-latest
+    needs: validate
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Nextflow
+        uses: nf-core/setup-nextflow@v2
+        with:
+          version: ">=24.10.1"
+
+      - name: Create stub database artifacts
+        # These are empty placeholders — the stub: blocks never read them.
+        # The eggnogmapper_db/eggnog_proteins.dmnd path is resolved in main.nf
+        # before process submission, so it must physically exist.
+        run: |
+          mkdir -p tests/stub_dbs/bakta_db tests/stub_dbs/eggnogmapper_db
+          touch tests/stub_dbs/eggnogmapper_db/eggnog_proteins.dmnd
+          touch tests/stub_dbs/kofamscan_profiles.tar.gz
+          touch tests/stub_dbs/ko_list.gz
+          touch tests/stub_dbs/gunc.db
+          touch tests/stub_dbs/checkm2.db
+
+      - name: Create mock tool executables for stub version tracking
+        # nf-core modules run eval() in their output block even in -stub mode
+        # to populate the 'topic: versions' channel. These mocks satisfy those
+        # eval commands without installing the real bioinformatics tools.
+        run: |
+          mkdir -p "$HOME/.local/mock_bin"
+
+          # eval: gunc --version
+          printf '#!/bin/bash\necho "gunc 1.0.6"\n'              > "$HOME/.local/mock_bin/gunc"
+          # eval: checkm2 --version
+          printf '#!/bin/bash\necho "1.0.2"\n'                   > "$HOME/.local/mock_bin/checkm2"
+          # eval: fastANI --version 2>&1 | head -1 | sed "s/version //" -> "1.34"
+          printf '#!/bin/bash\necho "version 1.34"\n'            > "$HOME/.local/mock_bin/fastANI"
+          # eval: bakta --version 2>&1 | sed 's/bakta //' -> "1.9.0"
+          printf '#!/bin/bash\necho "bakta 1.9.0"\n'             > "$HOME/.local/mock_bin/bakta"
+          # eval: exec_annotation --version 2>&1 | sed 's/exec_annotation //;' -> "3.3.1"
+          printf '#!/bin/bash\necho "exec_annotation 3.3.1"\n'   > "$HOME/.local/mock_bin/exec_annotation"
+          # eval: emapper.py --version 2>&1 | grep -o 'emapper-X.Y.Z' | sed 's/emapper-//' -> "2.1.12"
+          printf '#!/bin/bash\necho "emapper-2.1.12"\n'          > "$HOME/.local/mock_bin/emapper.py"
+
+          chmod +x "$HOME/.local/mock_bin"/*
+          echo "$HOME/.local/mock_bin" >> "$GITHUB_PATH"
+
+      - name: Run pipeline in stub mode
+        run: |
+          nextflow run main.nf \
+            -stub \
+            -c configs/test.config \
+            2>&1 | tee nextflow-stub.log
+          # tee keeps stdout for the next step; the pipe exit code comes from nextflow
+          exit ${PIPESTATUS[0]}
+
+      - name: Verify all processes were exercised
+        run: |
+          python3 - <<'EOF'
+          import sys, re
+
+          log = open('nextflow-stub.log').read()
+
+          expected = [
+              'GUNC_RUN',
+              'CHECKM2_PREDICT',
+              'QC_TRIAGE',
+              'DUPLICATE_HANDLING',
+              'FASTANI',
+              'BAKTA_BAKTA',
+              'EGGNOGMAPPER',
+              'KOFAMSCAN',
+              'KO_COUNT_MATRIX',
+              'COUNT_AMINO_ACIDS',
+              'EXTRACT_16S_RRNA',
+          ]
+
+          missing = [p for p in expected if p not in log]
+          if missing:
+              print(f"Processes not found in Nextflow log: {missing}", file=sys.stderr)
+              print("Full log tail:", file=sys.stderr)
+              print('\n'.join(log.splitlines()[-30:]), file=sys.stderr)
+              sys.exit(1)
+
+          print(f"All {len(expected)} expected processes found in log.")
+          EOF
+
+      - name: Upload logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nextflow-stub-logs
+          path: |
+            nextflow-stub.log
+            .nextflow.log
