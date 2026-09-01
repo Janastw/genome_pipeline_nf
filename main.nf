@@ -115,6 +115,19 @@ workflow {
         [],
     )
 
+    ch_faa_dir = BAKTA_BAKTA.out.faa
+    .map { meta, faa -> faa }
+    .collect()
+    .map { file_list ->
+        def dir = file("${params.out}/faa")
+        dir.mkdirs() 
+        
+        file_list.each { f -> f.copyTo(dir.resolve(f.name)) }
+        
+        return dir 
+    }
+
+
     COUNT_AMINO_ACIDS(
         file("${projectDir}/local_modules/faa_processing/count_amino_acids/count_aa.py"),
         BAKTA_BAKTA.out.faa.map { it[1] }.collect()
