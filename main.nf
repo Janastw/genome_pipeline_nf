@@ -14,6 +14,7 @@ include { DUPLICATE_HANDLING } from './local_modules/qc/duplicate_handling/main.
 include { KO_COUNT_MATRIX }    from './local_modules/faa_processing/create_ko_matrix/ko_count_matrix.nf'
 include { COUNT_AMINO_ACIDS }  from './local_modules/faa_processing/count_amino_acids/count_aa.nf'
 include { EXTRACT_16S_RRNA }   from './local_modules/faa_processing/extract_16s_rrna/extract_16s_rrna.nf'
+include { MERGE_FAA }          from './local_modules/faa_processing/merge_faa/merge_faa.nf'
 
 
 workflow {
@@ -115,18 +116,7 @@ workflow {
         [],
     )
 
-    ch_faa_dir = BAKTA_BAKTA.out.faa
-    .map { meta, faa -> faa }
-    .collect()
-    .map { file_list ->
-        def dir = file("${params.out}/faa")
-        dir.mkdirs() 
-        
-        file_list.each { f -> f.copyTo(dir.resolve(f.name)) }
-        
-        return dir 
-    }
-
+    ch_faa_dir = MERGE_FAA(BAKTA_BAKTA.out.faa.map { it[1] }.collect())
 
     COUNT_AMINO_ACIDS(
         file("${projectDir}/local_modules/faa_processing/count_amino_acids/count_aa.py"),
